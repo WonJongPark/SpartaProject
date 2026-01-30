@@ -1,0 +1,215 @@
+#include "SpartaGameState.h"
+
+#include "CoinItem.h"
+#include "SpartaGameInstance.h"
+#include "SpartaPlayerController.h"
+#include "SpawnVolume.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/TextBlock.h"
+#include "Kismet/GameplayStatics.h"
+
+ASpartaGameState::ASpartaGameState()
+{
+	Score = 0;
+	SpawnedCoinCount = 0;
+	CollectedCoinCount = 0; // 전체 초기화
+	LevelDuration = 30.0f;
+	CurrentLevelIndex = 0;
+	MaxLevels = 3;
+}
+
+void ASpartaGameState::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	StartLevel();
+	
+	// 0.1초마다 남은 시간을 갱신하기 위해 UpdateHUD 호출
+	GetWorldTimerManager().SetTimer(
+		HUDUpdateTimerHandle,
+		this,
+		&ASpartaGameState::UpdateHUD,
+		0.1f,
+		true
+	);
+}
+
+int32 ASpartaGameState::GetScore() const
+{
+	return Score;
+}
+
+void ASpartaGameState::AddScore(int32 Amount)
+{
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+		if (SpartaGameInstance)
+		{
+			SpartaGameInstance->AddToScore(Amount);
+		}
+	}
+}
+
+void ASpartaGameState::StartLevel()
+{
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		if (ASpartaPlayerController* SpartaPlayerController = Cast<ASpartaPlayerController>(PlayerController))
+		{
+			SpartaPlayerController->ShowGameHUD();
+		}
+	}
+	
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+		if (SpartaGameInstance)
+		{
+			CurrentLevelIndex = SpartaGameInstance->CurrentLevelIndex;
+		}
+	}
+	
+	SpawnedCoinCount = 0;
+	CollectedCoinCount = 0; // 레벨을 불러올 때마다 초기화
+	
+	TArray<AActor*> FoundVolumes;
+	// 월드에서 ASpawnVolume을 찾아 FoundVolumes에 넣어라
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
+
+	
+	// 코인이 40개가 될때까지 스폰하는 로직
+	const int32 ItemToSpawn = 40;
+	for (int32 i = 0; i < ItemToSpawn; i++)
+	{
+		if (FoundVolumes.Num() > 0)
+		{
+			// 스폰 볼륨이 여러개라면 볼륨을 랜덤으로 고르는 것도 하나의 방법이다.
+			ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
+			if (SpawnVolume)
+			{
+				AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
+				if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
+				{
+					SpawnedCoinCount++;
+				}
+			}
+		}
+	}
+	
+	GetWorldTimerManager().SetTimer(
+		LevelTimerHandle,
+		this,
+		&ASpartaGameState::OnLevelTimeUp,
+		LevelDuration,
+		false
+	);
+	
+}
+
+void ASpartaGameState::OnLevelTimeUp()
+{
+	EndLevel();
+}
+
+void ASpartaGameState::OnCoinCollected()
+{
+	CollectedCoinCount++;
+	UE_LOG(LogTemp, Warning, TEXT("Coin Collected: %d / %d"),
+		CollectedCoinCount,
+		SpawnedCoinCount
+	);
+	
+	if (SpawnedCoinCount > 0 && CollectedCoinCount >= SpawnedCoinCount)
+	{
+		EndLevel();
+	}
+}
+
+void ASpartaGameState::EndLevel()
+{
+	GetWorldTimerManager().ClearTimer((LevelTimerHandle));
+	
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+		if (SpartaGameInstance)
+		{
+			AddScore(Score);
+			CurrentLevelIndex++;
+			SpartaGameInstance->CurrentLevelIndex = CurrentLevelIndex;
+		}
+	}
+	
+	if (CurrentLevelIndex >= MaxLevels)
+	{
+		OnGameOver();
+		return;
+	}
+	
+	if (LevelMapNames.IsValidIndex(CurrentLevelIndex))
+	{
+		// 월드에서 이름을 가져와 오픈을 해달라
+		// 오픈 레벨을 할 때마다 GameState가 다시 만들어 지면서 BeginPlay()가 호출된다.
+		UGameplayStatics::OpenLevel(GetWorld(), LevelMapNames[CurrentLevelIndex]);
+	}
+	else
+	{
+		OnGameOver(); // 에러처리 용 게임 오버
+	}
+}
+
+void ASpartaGameState::OnGameOver()
+{
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		if (ASpartaPlayerController* SpartaPlayerController = Cast<ASpartaPlayerController>(PlayerController))
+		{
+			SpartaPlayerController->SetPause(true);
+			SpartaPlayerController->ShowMainMenu(true);
+		}
+	}
+}
+
+void ASpartaGameState::UpdateHUD()
+{
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		if (ASpartaPlayerController* SpartaPlayerController = Cast<ASpartaPlayerController>(PlayerController))
+		{
+			if (UUserWidget* HUDWidget = SpartaPlayerController->GetHUDWidget())
+			{
+				if (UTextBlock* TimeText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Time"))))
+				{ // 플레이어 컨트롤러에 있는 위젯에서 텍스트박스 중 이름이 "Time"인걸 얻어옴.
+					float RemainingTime = GetWorldTimerManager().GetTimerRemaining(LevelTimerHandle);
+					// String을 텍스트로 변환해주는 작업
+					TimeText->SetText(FText::FromString(FString::Printf(TEXT("Time: %.1f"), RemainingTime)));
+				}
+				
+				if (UTextBlock* ScoreText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Score"))))
+				{ 
+					if (UGameInstance* GameInstance = GetGameInstance())
+					{
+						USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+						if (SpartaGameInstance)
+						{
+							ScoreText->SetText(FText::FromString(FString::Printf(TEXT("Score: %d"), SpartaGameInstance->TotalScore)));
+						}
+					}	
+				}
+				
+				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Level"))))
+				{ 
+					if (UGameInstance* GameInstance = GetGameInstance())
+					{
+						USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
+						if (SpartaGameInstance)
+						{
+							LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Level: %d"), CurrentLevelIndex + 1)));
+						}
+					}	
+				}
+			}
+		}
+	}
+}
