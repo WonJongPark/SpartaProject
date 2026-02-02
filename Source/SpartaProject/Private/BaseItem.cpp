@@ -74,13 +74,18 @@ void ABaseItem::ActivateItem(AActor* Activator)
 	if (Particle)
 	{
 		FTimerHandle DestroyParticleTimerHandle;
+		TWeakObjectPtr<UParticleSystemComponent> WeakParticle = Particle;
+		
 		
 		GetWorldTimerManager().SetTimer(
 			DestroyParticleTimerHandle,
-			[Particle]() // 람다 함수.
+			[WeakParticle]() // 람다 함수.
 			{							  // 대괄호 안에 있는 것은 캡처리스트로 Particle이란 변수를
-										  // 밖의 스코프에서 가져와서 사용하게 만들 수 있다.
-				Particle->DestroyComponent();
+				if (WeakParticle.IsValid())
+				{
+					// 밖의 스코프에서 가져와서 사용하게 만들 수 있다.
+					WeakParticle->DestroyComponent();
+				}
 			},
 			2.0f,
 			false

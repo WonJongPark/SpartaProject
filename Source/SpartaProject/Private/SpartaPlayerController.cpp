@@ -20,6 +20,52 @@ ASpartaPlayerController::ASpartaPlayerController()
 	
 }
 
+void ASpartaPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+	// LocalPlayer == 플레이어의 입력이나 화면 뷰를 관리하는 객체
+	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		// UEnhancedInputLocalPlayerSubsystem 입력시스템을 관리하는 것
+		// IMC을 추가하고 삭제하는 것을 한다
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
+			LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			if (InputMappingContext)
+			{
+				// 0은 우선순위를 가장 높게 하라는 뜻. 겹치면 현재 IMC가 활성화 됨.
+				Subsystem->AddMappingContext(InputMappingContext, 0);
+			}
+		}
+	}
+	
+	// ShowMainMenu()와 ShowGameHUD()를 구현 했으므로 이제 필요가 없다.
+	// if (HUDWidgetClass)
+	// {
+	// 	// CreateWidget는 UIWidget인스턴스를 생성하는 함수이다.
+	// 	HUDWidgetInstance = CreateWidget<UUserWidget>(this, HUDWidgetClass);
+	// 	if (HUDWidgetInstance)
+	// 	{
+	// 		HUDWidgetInstance->AddToViewport();
+	// 	}
+	// }
+	
+	// // 위젯을 한 번 띄운 직후에 업데이트
+	// ASpartaGameState* SpartaGameState = GetWorld() ? GetWorld()->GetGameState<ASpartaGameState>() : nullptr;
+	// if (SpartaGameState)
+	// {
+	// 	SpartaGameState->UpdateHUD();
+	// }
+	
+	// 현재 띄워져 있는 맵이 메인 메뉴라면 메인 메뉴 UI를 띄워라
+	FString CurrentMapName = GetWorld()->GetMapName();
+	if (CurrentMapName.Contains("MenuLevel"))
+	{
+		ShowMainMenu(false);
+	}
+}
+
 UUserWidget* ASpartaPlayerController::GetHUDWidget() const
 {
 	return HUDWidgetInstance;
@@ -136,48 +182,3 @@ void ASpartaPlayerController::StartGame()
 	SetPause(false);
 }
 
-void ASpartaPlayerController::BeginPlay()
-{
-	Super::BeginPlay();
-
-	// LocalPlayer == 플레이어의 입력이나 화면 뷰를 관리하는 객체
-	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
-	{
-		// UEnhancedInputLocalPlayerSubsystem 입력시스템을 관리하는 것
-		// IMC을 추가하고 삭제하는 것을 한다
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem =
-			LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-		{
-			if (InputMappingContext)
-			{
-				// 0은 우선순위를 가장 높게 하라는 뜻. 겹치면 현재 IMC가 활성화 됨.
-				Subsystem->AddMappingContext(InputMappingContext, 0);
-			}
-		}
-	}
-	
-	// ShowMainMenu()와 ShowGameHUD()를 구현 했으므로 이제 필요가 없다.
-	// if (HUDWidgetClass)
-	// {
-	// 	// CreateWidget는 UIWidget인스턴스를 생성하는 함수이다.
-	// 	HUDWidgetInstance = CreateWidget<UUserWidget>(this, HUDWidgetClass);
-	// 	if (HUDWidgetInstance)
-	// 	{
-	// 		HUDWidgetInstance->AddToViewport();
-	// 	}
-	// }
-	
-	// // 위젯을 한 번 띄운 직후에 업데이트
-	// ASpartaGameState* SpartaGameState = GetWorld() ? GetWorld()->GetGameState<ASpartaGameState>() : nullptr;
-	// if (SpartaGameState)
-	// {
-	// 	SpartaGameState->UpdateHUD();
-	// }
-	
-	// 현재 띄워져 있는 맵이 메인 메뉴라면 메인 메뉴 UI를 띄워라
-	FString CurrentMapName = GetWorld()->GetMapName();
-	if (CurrentMapName.Contains("MenuLevel"))
-	{
-		ShowMainMenu(false);
-	}
-}

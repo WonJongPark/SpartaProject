@@ -13,9 +13,12 @@ ASpartaGameState::ASpartaGameState()
 	Score = 0;
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0; // 전체 초기화
-	LevelDuration = 30.0f;
+	LevelDuration = { 5.0f, 5.0f, 5.0f };
 	CurrentLevelIndex = 0;
 	MaxLevels = 3;
+	CurrentWaveIndex = 0;
+	MaxWaves = 3;
+	ItemToSpawnByWave = { 40, 45, 50 };
 }
 
 void ASpartaGameState::BeginPlay()
@@ -23,6 +26,7 @@ void ASpartaGameState::BeginPlay()
 	Super::BeginPlay();
 	
 	StartLevel();
+	
 	
 	// 0.1초마다 남은 시간을 갱신하기 위해 UpdateHUD 호출
 	GetWorldTimerManager().SetTimer(
@@ -43,8 +47,7 @@ void ASpartaGameState::AddScore(int32 Amount)
 {
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-		if (SpartaGameInstance)
+		if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance))
 		{
 			SpartaGameInstance->AddToScore(Amount);
 		}
@@ -63,34 +66,41 @@ void ASpartaGameState::StartLevel()
 	
 	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-		if (SpartaGameInstance)
+		if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance))
 		{
 			CurrentLevelIndex = SpartaGameInstance->CurrentLevelIndex;
 		}
 	}
-	
-	SpawnedCoinCount = 0;
-	CollectedCoinCount = 0; // 레벨을 불러올 때마다 초기화
-	
-	TArray<AActor*> FoundVolumes;
-	// 월드에서 ASpawnVolume을 찾아 FoundVolumes에 넣어라
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 
+	StartWave();
+	//TArray<AActor*> FoundVolumes;
+	// 월드에서 ASpawnVolume을 찾아 FoundVolumes에 넣어라
+	//UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
+}
+
+void ASpartaGameState::StartWave()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Wave %d Start!"), CurrentWaveIndex + 1);
+	TArray<AActor*> FoundVolumes;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 	
 	// 코인이 40개가 될때까지 스폰하는 로직
-	const int32 ItemToSpawn = 40;
+	SpawnedCoinCount = 0;
+	CollectedCoinCount = 0; // 웨이브 시작 때마다 초기화
+	SpawnItems.Empty(); // 웨이브 시작 때 엑터 비우기
+	
+	const int32 ItemToSpawn = ItemToSpawnByWave[CurrentWaveIndex];
 	for (int32 i = 0; i < ItemToSpawn; i++)
 	{
 		if (FoundVolumes.Num() > 0)
 		{
 			// 스폰 볼륨이 여러개라면 볼륨을 랜덤으로 고르는 것도 하나의 방법이다.
-			ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
-			if (SpawnVolume)
+			if (ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]))
 			{
 				AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
 				if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
 				{
+					SpawnItems.Add(SpawnedActor);
 					SpawnedCoinCount++;
 				}
 			}
@@ -101,15 +111,22 @@ void ASpartaGameState::StartLevel()
 		LevelTimerHandle,
 		this,
 		&ASpartaGameState::OnLevelTimeUp,
-		LevelDuration,
+		LevelDuration[CurrentWaveIndex],
 		false
 	);
-	
 }
 
 void ASpartaGameState::OnLevelTimeUp()
 {
-	EndLevel();
+	if (CurrentWaveIndex >= MaxWaves - 1)
+	{
+		EndLevel();
+	}
+	else
+	{	
+		EndWave();
+		StartWave();
+	}
 }
 
 void ASpartaGameState::OnCoinCollected()
@@ -122,8 +139,31 @@ void ASpartaGameState::OnCoinCollected()
 	
 	if (SpawnedCoinCount > 0 && CollectedCoinCount >= SpawnedCoinCount)
 	{
-		EndLevel();
+		if (CurrentWaveIndex >= MaxWaves)
+		{
+			EndLevel();
+		}
+		else
+		{
+			EndWave();
+			StartWave();
+		}
 	}
+}
+
+void ASpartaGameState::EndWave()
+{
+	for (AActor* Item : SpawnItems)
+	{
+		if (IsValid(Item))
+		{
+			Item->Destroy();
+		}
+	}
+	SpawnItems.Empty();
+	GetWorldTimerManager().ClearTimer(LevelTimerHandle);
+	
+	CurrentWaveIndex++;
 }
 
 void ASpartaGameState::EndLevel()
@@ -195,7 +235,7 @@ void ASpartaGameState::UpdateHUD()
 						{
 							ScoreText->SetText(FText::FromString(FString::Printf(TEXT("Score: %d"), SpartaGameInstance->TotalScore)));
 						}
-					}	
+					}
 				}
 				
 				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Level"))))
