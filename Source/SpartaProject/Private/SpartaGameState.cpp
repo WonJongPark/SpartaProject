@@ -15,12 +15,12 @@ ASpartaGameState::ASpartaGameState()
 	Score = 0;
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0; // 전체 초기화
-	LevelDuration = { 30.0f, 35.0f, 40.0f };
+	LevelDuration = { 30.0f, 25.0f, 20.0f };
 	CurrentLevelIndex = 0;
 	MaxLevels = 3;
 	CurrentWaveIndex = 0;
-	MaxWaves = 3;
-	ItemToSpawnByWave = { 40, 45, 50 };
+	MaxWaves = 2;
+	ItemToSpawnByWave = { 30, 35, 40 };
 }
 
 void ASpartaGameState::BeginPlay()
@@ -73,7 +73,7 @@ void ASpartaGameState::StartLevel()
 			CurrentLevelIndex = SpartaGameInstance->CurrentLevelIndex;
 		}
 	}
-
+	CurrentWaveIndex = 0;
 	StartWave();
 	//TArray<AActor*> FoundVolumes;
 	// 월드에서 ASpawnVolume을 찾아 FoundVolumes에 넣어라
@@ -91,7 +91,7 @@ void ASpartaGameState::StartWave()
 	CollectedCoinCount = 0; // 웨이브 시작 때마다 초기화
 	SpawnItems.Empty(); // 웨이브 시작 때 엑터 비우기
 	
-	const int32 ItemToSpawn = ItemToSpawnByWave[CurrentWaveIndex];
+	int32 ItemToSpawn = ItemToSpawnByWave[CurrentWaveIndex];
 	for (int32 i = 0; i < ItemToSpawn; i++)
 	{
 		if (FoundVolumes.Num() > 0)
@@ -120,7 +120,7 @@ void ASpartaGameState::StartWave()
 
 void ASpartaGameState::OnLevelTimeUp()
 {
-	if (CurrentWaveIndex >= MaxWaves - 1)
+	if (CurrentWaveIndex >= MaxWaves)
 	{
 		EndLevel();
 	}
