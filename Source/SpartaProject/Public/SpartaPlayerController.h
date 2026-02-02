@@ -44,10 +44,19 @@ public:
 	// 메인 메뉴 표시
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void ShowMainMenu(bool bIsRestart);
+	
 	// 게임 시작
 	UFUNCTION(BlueprintCallable, Category = "Menu")
 	void StartGame();
+	// 게임 종료
+	UFUNCTION(BlueprintCallable, Category = "Menu")
+	void ExitGame();
 	
-protected:
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Menu")
+	bool bRestart;
+	
+	bool GetRestart();
+	
 	virtual void BeginPlay() override;
 };

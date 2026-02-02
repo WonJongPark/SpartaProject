@@ -1,11 +1,13 @@
 #include "MineItem.h"
+
+#include "SpartaGameState.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
 
 AMineItem::AMineItem()
 {
-	ExplosionDelay = 5.0f;
+	ExplosionDelay = 3.0f;
 	ExplosionRadius = 300.0f;
 	ExplosionDamage = 30.0f;
 	ItemType = "Mine";
@@ -73,6 +75,14 @@ void AMineItem::Explode()
 				this,
 				UDamageType::StaticClass() // 가장 기본적인 데미지 유형
 			);
+			
+			if (UWorld* World = GetWorld())
+			{
+				if (ASpartaGameState* GameState = World->GetGameState<ASpartaGameState>())
+				{
+					GameState->UpdateHUD();
+				}
+			}
 		}
 	}
 	

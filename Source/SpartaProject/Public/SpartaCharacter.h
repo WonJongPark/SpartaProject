@@ -27,6 +27,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetHealth() const;
 	
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetMaxHealth() const;
+	
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void AddHealth(float Amount);
 

@@ -15,9 +15,15 @@ ASpartaPlayerController::ASpartaPlayerController()
 	HUDWidgetClass(nullptr),
 	HUDWidgetInstance(nullptr),
 	MainMenuWidgetClass(nullptr),
-	MainMenuWidgetInstance(nullptr)
+	MainMenuWidgetInstance(nullptr),
+	bRestart(false)
 {
 	
+}
+
+bool ASpartaPlayerController::GetRestart()
+{
+	return bRestart;
 }
 
 void ASpartaPlayerController::BeginPlay()
@@ -107,6 +113,8 @@ void ASpartaPlayerController::ShowGameHUD()
 
 void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
 {
+	bRestart = bIsRestart;
+	
 	if (HUDWidgetInstance)
 	{
 		HUDWidgetInstance->RemoveFromParent(); // 부모에서 떼어냄
@@ -133,22 +141,17 @@ void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
 	
 	if (UTextBlock* ButtonText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("StartButtonText"))))
 	{
-		if (bIsRestart)
+		if (bRestart)
 		{
-			ButtonText->SetText((FText::FromString(TEXT("Restart"))));
+			ButtonText->SetText(FText::FromString(TEXT("Restart")));
 			
-			// UFunction* PlayAnimFun = MainMenuWidgetInstance->FindFunction(FName("PlayGameOverAnim"));
-			// if (PlayAnimFun)
-			// {
-			// 	MainMenuWidgetInstance->ProcessEvent(PlayAnimFun, nullptr);
-			// }
 		}
 		else
 		{
-			ButtonText->SetText((FText::FromString(TEXT("Start"))));
+			ButtonText->SetText(FText::FromString(TEXT("Start")));
 		}
 		
-		if (bIsRestart)
+		if (bRestart)
 		{
 			UFunction* PlayAnimFunc = MainMenuWidgetInstance->FindFunction(FName("PlayGameOverAnim"));
 			if (PlayAnimFunc)
@@ -161,10 +164,23 @@ void ASpartaPlayerController::ShowMainMenu(bool bIsRestart)
 				if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(UGameplayStatics::GetGameInstance(this)))
 				{
 					TotalScoreText->SetText(FText::FromString(
-						FString::Printf(TEXT("Total Score: %d"), SpartaGameInstance->TotalScore)
-						));
+						FString::Printf(TEXT("Total Score: %d"), SpartaGameInstance->TotalScore))
+					);
 				}
 			}
+		}
+	}
+	
+	if (UTextBlock* ExitButtonText = Cast<UTextBlock>(MainMenuWidgetInstance->GetWidgetFromName(TEXT("ExitButtonText"))))
+	{
+		if (bRestart)
+		{
+			ExitButtonText->SetText(FText::FromString(TEXT("MainMenu")));
+			
+		}
+		else
+		{
+			ExitButtonText->SetText(FText::FromString(TEXT("Exit")));
 		}
 	}
 }
@@ -180,5 +196,10 @@ void ASpartaPlayerController::StartGame()
 	// 월드에서 BasicLevel을 오픈해라
 	UGameplayStatics::OpenLevel(GetWorld(), FName("BasicLevel"));
 	SetPause(false);
+}
+
+void ASpartaPlayerController::ExitGame()
+{
+	UKismetSystemLibrary::QuitGame(this, this, EQuitPreference::Quit, false);
 }
 

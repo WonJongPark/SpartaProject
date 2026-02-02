@@ -1,6 +1,7 @@
 #include "HealingItem.h"
 
 #include "SpartaCharacter.h"
+#include "SpartaGameState.h"
 
 AHealingItem::AHealingItem()
 {
@@ -17,6 +18,13 @@ void AHealingItem::ActivateItem(AActor* Activator)
 		if (ASpartaCharacter* PlayerCharacter = Cast<ASpartaCharacter>(Activator))
 		{
 			PlayerCharacter->AddHealth(HealAmount);
+			if (UWorld* World = GetWorld())
+			{
+				if (ASpartaGameState* GameState = World->GetGameState<ASpartaGameState>())
+				{
+					GameState->UpdateHUD();
+				}
+			}
 		}
 		
 		DestroyItem();

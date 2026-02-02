@@ -43,6 +43,11 @@ float ASpartaCharacter::GetHealth() const
 	return Health;
 }
 
+float ASpartaCharacter::GetMaxHealth() const
+{
+	return MaxHealth;
+}
+
 void ASpartaCharacter::AddHealth(float Amount)
 {
 	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);

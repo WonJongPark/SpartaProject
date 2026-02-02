@@ -1,10 +1,12 @@
 #include "SpartaGameState.h"
 
 #include "CoinItem.h"
+#include "SpartaCharacter.h"
 #include "SpartaGameInstance.h"
 #include "SpartaPlayerController.h"
 #include "SpawnVolume.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -13,7 +15,7 @@ ASpartaGameState::ASpartaGameState()
 	Score = 0;
 	SpawnedCoinCount = 0;
 	CollectedCoinCount = 0; // 전체 초기화
-	LevelDuration = { 5.0f, 5.0f, 5.0f };
+	LevelDuration = { 30.0f, 35.0f, 40.0f };
 	CurrentLevelIndex = 0;
 	MaxLevels = 3;
 	CurrentWaveIndex = 0;
@@ -230,8 +232,7 @@ void ASpartaGameState::UpdateHUD()
 				{ 
 					if (UGameInstance* GameInstance = GetGameInstance())
 					{
-						USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-						if (SpartaGameInstance)
+						if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance))
 						{
 							ScoreText->SetText(FText::FromString(FString::Printf(TEXT("Score: %d"), SpartaGameInstance->TotalScore)));
 						}
@@ -242,12 +243,52 @@ void ASpartaGameState::UpdateHUD()
 				{ 
 					if (UGameInstance* GameInstance = GetGameInstance())
 					{
-						USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance);
-						if (SpartaGameInstance)
+						if (USpartaGameInstance* SpartaGameInstance = Cast<USpartaGameInstance>(GameInstance))
 						{
 							LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Level: %d"), CurrentLevelIndex + 1)));
 						}
 					}	
+				}
+				
+				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Wave"))))
+				{ 
+					LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Wave: %d"), CurrentWaveIndex + 1)));
+				}
+				
+				if (UProgressBar* HPBar = Cast<UProgressBar>(HUDWidget->GetWidgetFromName(TEXT("HPBar"))))
+				{
+					APawn* PlayerPawn = SpartaPlayerController->GetPawn();
+					
+					if (ASpartaCharacter* SpartaCharacter = Cast<ASpartaCharacter>(PlayerPawn))
+					{
+						if (SpartaCharacter->GetMaxHealth() > 0.0f)
+						{
+							const float HPRatio = SpartaCharacter->GetHealth() / SpartaCharacter->GetMaxHealth();
+							HPBar->SetPercent(HPRatio);
+						}
+					}
+				}
+				
+				if (UTextBlock* HPText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("HP"))))
+				{ 
+					APawn* PlayerPawn = SpartaPlayerController->GetPawn();
+					
+					if (ASpartaCharacter* SpartaCharacter = Cast<ASpartaCharacter>(PlayerPawn))
+					{
+						int32 HP = SpartaCharacter->GetHealth();
+						HPText->SetText(FText::FromString(FString::Printf(TEXT("%d"), HP)));
+					}
+				}
+				
+				if (UTextBlock* MaxHPText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MaxHP"))))
+				{ 
+					APawn* PlayerPawn = SpartaPlayerController->GetPawn();
+					
+					if (ASpartaCharacter* SpartaCharacter = Cast<ASpartaCharacter>(PlayerPawn))
+					{
+						int32 MaxHP = SpartaCharacter->GetMaxHealth();
+						MaxHPText->SetText(FText::FromString(FString::Printf(TEXT("%d"), MaxHP)));
+					}
 				}
 			}
 		}
